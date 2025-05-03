@@ -1,14 +1,16 @@
-from flask import Flask, send_from_directory, request, render_template, Response
+from flask import Flask, send_from_directory, request, render_template, Response, send_file
 import socket
 import threading
 import os
 import qrcode
 import io
+import zipfile
 
 app = Flask(__name__)
 SHARED_FOLDER = './shared'
 HTTP_PORT = 8000
 BROADCAST_PORT = 9999
+TEMP_CHUNK_FOLDER = './temp_chunks'
 
 def get_local_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -59,6 +61,23 @@ def upload_chunk():
         os.rmdir(chunk_folder)
 
     return 'OK'
+
+@app.route('/download_all')
+def download_all():
+    from io import BytesIO
+    memory_file = BytesIO()
+    with zipfile.ZipFile(memory_file, 'w') as zf:
+        for filename in os.listdir(SHARED_FOLDER):
+            file_path = os.path.join(SHARED_FOLDER, filename)
+            if os.path.isfile(file_path):
+                zf.write(file_path, arcname=filename)
+    memory_file.seek(0)
+    return send_file(
+        memory_file,
+        mimetype='application/zip',
+        as_attachment=True,
+        download_name='all_files.zip'
+    )
 
 @app.route('/qrcode')
 def qrcode_view():

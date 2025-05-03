@@ -1,0 +1,5 @@
+/shared
+/temp_chunks
+/venv
+/.venv
+.DS_STORE

@@ -5,85 +5,132 @@
   <title>📂 File Share</title>
   <style>
     body {
-      font-family: sans-serif;
-      background-color: #f4f4f4;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(135deg, #f4f4f4 60%, #e3eaff 100%);
       padding: 2rem;
       max-width: 700px;
       margin: auto;
     }
     h1 {
       text-align: center;
+      color: #007bff;
+      margin-bottom: 2rem;
+      letter-spacing: 1px;
     }
     .upload-box {
-      margin-bottom: 1.5rem;
-      padding: 1rem;
+      margin-bottom: 2rem;
+      padding: 1.5rem;
       background: #fff;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
     }
     .file-list {
       background: #fff;
-      padding: 1rem;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+      margin-bottom: 2rem;
+    }
+    .file-list ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
     }
     .file-item {
-      margin-bottom: 0.5rem;
+      margin-bottom: 0.75rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      transition: background 0.2s;
+      display: flex;
+      align-items: center;
+    }
+    .file-item a {
+      color: #007bff;
+      text-decoration: none;
+      font-weight: 500;
+      flex: 1;
+      word-break: break-all;
+    }
+    .file-item:hover {
+      background: #f0f8ff;
     }
     progress {
       width: 100%;
       margin-top: 0.5rem;
+      height: 18px;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #e9ecef;
     }
     .qr {
-      margin-top: 2rem;
+      margin-top: 2.5rem;
       text-align: center;
+      background: #fff;
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
     }
     input[type="file"] {
       display: block;
-      margin-bottom: 0.5rem;
+      margin-bottom: 0.75rem;
+      font-size: 1rem;
     }
     button {
-      background: #007bff;
+      background: linear-gradient(90deg, #007bff 60%, #0056b3 100%);
       color: white;
       border: none;
-      padding: 0.5rem 1rem;
-      font-size: 1rem;
-      border-radius: 4px;
+      padding: 0.6rem 1.3rem;
+      font-size: 1.05rem;
+      border-radius: 6px;
       cursor: pointer;
+      font-weight: 500;
+      transition: background 0.2s;
+      box-shadow: 0 2px 8px rgba(0,123,255,0.08);
     }
     button:disabled {
       background: #aaa;
       cursor: not-allowed;
     }
+    #upload-status .file-progress-container {
+      margin-bottom: 1rem;
+      background: #f8f9fa;
+      padding: 0.7rem 1rem;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+    }
+    .file-progress-label {
+      font-size: 0.97rem;
+      margin-bottom: 0.3rem;
+      color: #333;
+    }
   </style>
 </head>
 <body>
-  <h1>📂 File Share</h1>
+  <h1>📂 File Share over LAN </h1>
 
   <div class="upload-box">
     <h3>Upload a File</h3>
-    <<form id="upload-form">
-        <input type="file" id="file-input" required />
-        <button type="submit">Upload</button>
-        <progress value="0" max="100" id="progress-bar" style="display:none;"></progress>
-      </form>
+    <form id="upload-form">
+      <input type="file" id="file-input" multiple />
+      <button type="submit">Upload</button>
+    </form>
     <div id="upload-status"></div>
-  </div>
 
-  <div class="file-list">
-    <h3>Available Files</h3>
-    {% if files %}
-      <ul>
-        {% for file in files %}
-          <li class="file-item">
-            <a href="/download/{{ file }}">{{ file }}</a>
-          </li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <p>No files uploaded yet.</p>
-    {% endif %}
-  </div>
+    <div class="file-list">
+      <h3>Available Files</h3>
+      {% if files %}
+        <button onclick="window.location='/download_all'" style="margin-bottom:1rem;">⬇️ Download All</button>
+        <ul>
+          {% for file in files %}
+            <li class="file-item">
+              <a href="/download/{{ file }}">{{ file }}</a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>No files uploaded yet.</p>
+      {% endif %}
+    </div>
 
   <div class="qr">
     <h3>📱 Open on Mobile</h3>
@@ -92,45 +139,69 @@
   </div>
 
   <script>
-    const form = document.getElementById('upload-form');
-    const progressBar = document.getElementById('progress-bar');
-    const status = document.getElementById('upload-status');
-  
-    form.addEventListener('submit', async (e) => {
+    document.getElementById("upload-form").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const file = document.getElementById('file-input').files[0];
-      if (!file) return;
-  
-      const chunkSize = 1024 * 1024; // 1MB
-      const totalChunks = Math.ceil(file.size / chunkSize);
-      const filename = file.name;
-      const promises = [];
-  
-      progressBar.style.display = 'block';
-      progressBar.value = 0;
-  
-      for (let i = 0; i < totalChunks; i++) {
-        const chunk = file.slice(i * chunkSize, (i + 1) * chunkSize);
-        const formData = new FormData();
-        formData.append('chunk', chunk);
-        formData.append('filename', filename);
-        formData.append('chunk_index', i);
-        formData.append('total_chunks', totalChunks);
-  
-        const req = fetch('/upload_chunk', {
-          method: 'POST',
-          body: formData
-        }).then(() => {
-          progressBar.value = ((i + 1) / totalChunks) * 100;
-        });
-  
-        promises.push(req);
+      const files = Array.from(document.getElementById("file-input").files);
+      const statusBox = document.getElementById("upload-status");
+      statusBox.innerHTML = "";
+
+      if (files.length === 0) {
+        statusBox.innerHTML = "<div style='color:#d00;'>Please select at least one file.</div>";
+        return;
       }
-  
-      await Promise.all(promises);
-      status.innerHTML = "✅ Upload complete. <a href='/'>Refresh</a>";
-      progressBar.value = 0;
+
+      for (const file of files) {
+        const fileDiv = document.createElement("div");
+        fileDiv.classList.add("file-progress-container");
+
+        const label = document.createElement("div");
+        label.classList.add("file-progress-label");
+        label.innerText = `Uploading: ${file.name}`;
+
+        const progress = document.createElement("progress");
+        progress.classList.add("file-progress-bar");
+        progress.value = 0;
+        progress.max = 100;
+
+        fileDiv.appendChild(label);
+        fileDiv.appendChild(progress);
+        statusBox.appendChild(fileDiv);
+
+        await uploadFile(file, progress, label);
+      }
+      // Optionally, reload to show new files
+      setTimeout(() => window.location.reload(), 800);
     });
+
+    async function uploadFile(file, progressBar, label) {
+      const CHUNK_SIZE = 1024 * 1024; // 1MB
+      const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+
+      for (let i = 0; i < totalChunks; i++) {
+        const chunk = file.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+        const formData = new FormData();
+        formData.append("chunk", chunk);
+        formData.append("filename", file.name);
+        formData.append("chunk_index", i);
+        formData.append("total_chunks", totalChunks);
+
+        try {
+          await fetch("/upload_chunk", {
+            method: "POST",
+            body: formData,
+          });
+        } catch (err) {
+          label.innerText = `❌ Failed: ${file.name}`;
+          label.style.color = "#d00";
+          return;
+        }
+
+        progressBar.value = ((i + 1) / totalChunks) * 100;
+      }
+      label.innerText = `✅ Uploaded: ${file.name}`;
+      label.style.color = "#28a745";
+    }
   </script>
+    
 </body>
 </html>
